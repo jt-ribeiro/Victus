@@ -38,17 +38,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   // Header
                   _buildHeader(),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Welcome Card
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: _buildWelcomeCard(),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Reminder Card
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -57,7 +57,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-            
+
             // Bottom Navigation
             Positioned(
               bottom: 0,
@@ -77,18 +77,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Consumer<DashboardProvider>(
-            builder: (context, dashboardProvider, _) {
-              final userName = dashboardProvider.userName ?? 'Utilizador';
-              return Text(
-                'Olá, $userName',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              );
-            },
+          Expanded(
+            child: Consumer<DashboardProvider>(
+              builder: (context, dashboardProvider, _) {
+                final userName = dashboardProvider.userName ?? 'Utilizador';
+                return Text(
+                  'Olá, $userName',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                );
+              },
+            ),
           ),
           Row(
             children: [
@@ -166,7 +169,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6),
                     ),
@@ -299,7 +303,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   value: percentage,
                   strokeWidth: 12,
                   backgroundColor: const Color(0xFFF5E6E8),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4A574)),
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(Color(0xFFD4A574)),
                 ),
               ),
               Column(
@@ -342,8 +347,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Consumer<DashboardProvider>(
       builder: (context, dashboardProvider, _) {
         final events = dashboardProvider.events;
-        final displayEvents = events.take(2).toList();
-        final remainingCount = events.length > 2 ? events.length - 2 : 0;
 
         return Container(
           decoration: BoxDecoration(
@@ -351,6 +354,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           padding: const EdgeInsets.all(16),
+          height: 150, // Fixed height for scrolling
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -363,26 +367,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              ...displayEvents.map((event) {
-                final date = event.date.split('-').reversed.take(2).join('/');
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _buildEventItem(date, event.title),
-                );
-              }).toList(),
-              if (remainingCount > 0)
-                GestureDetector(
-                  onTap: () {
-                    // TODO: View all events
-                  },
-                  child: Text(
-                    '+ $remainingCount evento${remainingCount > 1 ? 's' : ''}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF666666),
-                    ),
-                  ),
-                ),
+              Expanded(
+                child: events.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Sem eventos próximos',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF666666),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.zero,
+                        itemCount: events.length,
+                        itemBuilder: (context, index) {
+                          final event = events[index];
+                          final date =
+                              event.date.split('-').reversed.take(2).join('/');
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _buildEventItem(date, event.title),
+                          );
+                        },
+                      ),
+              ),
             ],
           ),
         );
@@ -392,22 +401,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildEventItem(String date, String title) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          date,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Colors.black,
+        SizedBox(
+          width: 45,
+          child: Text(
+            date,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.black,
+            ),
           ),
         ),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            color: Colors.black,
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: Colors.black,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -439,7 +456,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-              _buildNavItem(1, Icons.calendar_today_outlined, Icons.calendar_today, 'Plano'),
+              _buildNavItem(1, Icons.calendar_today_outlined,
+                  Icons.calendar_today, 'Plano'),
               _buildFabButton(),
               _buildNavItem(2, Icons.book_outlined, Icons.book, 'Biblioteca'),
               _buildNavItem(3, Icons.person_outline, Icons.person, 'Perfil'),
@@ -450,14 +468,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData inactiveIcon, IconData activeIcon, String label) {
+  Widget _buildNavItem(
+      int index, IconData inactiveIcon, IconData activeIcon, String label) {
     final isActive = _selectedNavIndex == index;
     return InkWell(
       onTap: () {
         setState(() {
           _selectedNavIndex = index;
         });
-        // TODO: Navigate to respective screen
+        // Navigate to respective screen
+        if (index == 2) {
+          Navigator.pushNamed(context, '/library');
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -466,7 +488,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             Icon(
               isActive ? activeIcon : inactiveIcon,
-              color: isActive ? const Color(0xFFD4989E) : const Color(0xFFCCCCCC),
+              color:
+                  isActive ? const Color(0xFFD4989E) : const Color(0xFFCCCCCC),
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -474,7 +497,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: isActive ? const Color(0xFFD4989E) : const Color(0xFFCCCCCC),
+                color: isActive
+                    ? const Color(0xFFD4989E)
+                    : const Color(0xFFCCCCCC),
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
               ),
             ),

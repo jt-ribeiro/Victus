@@ -29,18 +29,17 @@ class DashboardProvider extends ChangeNotifier {
       if (response['success'] == true) {
         final data = response['data'];
 
-        _userName = data['user']['name'];
-        
+        _userName = data['user_name'];
+
         if (data['progress'] != null) {
           _progress = ProgressModel.fromJson(data['progress']);
         }
 
-        _events = (data['events'] as List)
-            .map((event) => EventModel.fromJson(event))
-            .toList();
-
         _isLoading = false;
         notifyListeners();
+
+        // Load events after dashboard loads
+        loadEvents();
       } else {
         _errorMessage = response['message'] ?? 'Erro ao carregar dashboard';
         _isLoading = false;

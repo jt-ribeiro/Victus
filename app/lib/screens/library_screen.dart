@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/video_provider.dart';
+import '../models/video_model.dart';
+import 'player_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({Key? key}) : super(key: key);
@@ -9,6 +13,15 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   int _selectedNavIndex = 3; // Library is active
+
+  @override
+  void initState() {
+    super.initState();
+    // Load courses from API
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<VideoProvider>(context, listen: false).loadCourses();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,58 +35,91 @@ class _LibraryScreenState extends State<LibraryScreen> {
               children: [
                 // Header
                 _buildHeader(),
-                
+
                 // Content List
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      bottom: 80, // Space for bottom nav
-                    ),
-                    children: [
-                      _buildLibraryItem(
-                        title: 'Liberdade Alimentar',
-                        backgroundColor: const Color(0xFF8B2635),
-                        hasProgress: true,
-                        progress: 0.8,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildLibraryItem(
-                        title: 'Olimpo',
-                        description: 'Corpo e mente invencíveis.',
-                        backgroundColor: const Color(0xFF2C2C2C),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildLibraryItem(
-                        title: 'Joanaflix',
-                        description: 'Desvenda o poder da nutrição com aulas didáticas.',
-                        backgroundColor: const Color(0xFF1A1A1A),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildLibraryItem(
-                        title: 'Workshops',
-                        description: 'Lorem Ipsum is simply d text\nLorem Ipsum is simply d text',
-                        backgroundColor: const Color(0xFFE5E5E5),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildLibraryItem(
-                        title: 'Masterclasses',
-                        description: 'Lorem Ipsum is simply d\nLorem Ipsum is simply d',
-                        backgroundColor: const Color(0xFFE5E5E5),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildLibraryItem(
-                        title: 'Desafio Corpo & Mente Sã',
-                        description: 'Lorem Ipsum is simply d text',
-                        backgroundColor: const Color(0xFFE5E5E5),
-                      ),
-                    ],
+                  child: Consumer<VideoProvider>(
+                    builder: (context, videoProvider, _) {
+                      if (videoProvider.isLoading) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFFD4989E),
+                          ),
+                        );
+                      }
+
+                      if (videoProvider.errorMessage != null) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                videoProvider.errorMessage!,
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 16,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () => videoProvider.loadCourses(),
+                                child: const Text('Tentar novamente'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (videoProvider.courses.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.library_books_outlined,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Nenhum curso disponível',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        padding: const EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          bottom: 80, // Space for bottom nav
+                        ),
+                        itemCount: videoProvider.courses.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 16),
+                        itemBuilder: (context, index) {
+                          final course = videoProvider.courses[index];
+                          return _buildLibraryItem(course);
+                        },
+                      );
+                    },
                   ),
                 ),
               ],
             ),
-            
+
             // Bottom Navigation
             Positioned(
               bottom: 0,
@@ -102,16 +148,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Widget _buildLibraryItem({
-    required String title,
-    String? description,
-    required Color backgroundColor,
-    bool hasProgress = false,
-    double progress = 0.0,
-  }) {
+  Widget _buildLibraryItem(CourseModel course) {
+    final backgroundColor = _parseColor(course.thumbnailColor);
+
     return GestureDetector(
       onTap: () {
-        // TODO: Navigate to content details
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PlayerScreen(
+              courseId: course.id,
+              title: course.title,
+            ),
+          ),
+        );
       },
       child: Container(
         decoration: BoxDecoration(
@@ -135,25 +185,28 @@ class _LibraryScreenState extends State<LibraryScreen> {
               decoration: BoxDecoration(
                 color: backgroundColor,
                 borderRadius: BorderRadius.circular(12),
+                image: course.thumbnailUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(course.thumbnailUrl!),
+                        fit: BoxFit.cover,
+                        onError: (exception, stackTrace) {},
+                      )
+                    : null,
               ),
-              child: backgroundColor == const Color(0xFFE5E5E5)
-                  ? Icon(
-                      Icons.image_outlined,
-                      size: 40,
-                      color: Colors.grey[400],
-                    )
-                  : Center(
+              child: course.thumbnailUrl == null
+                  ? Center(
                       child: Text(
-                        title[0],
+                        course.title.isNotEmpty ? course.title[0] : '',
                         style: const TextStyle(
                           fontSize: 48,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
                         ),
                       ),
-                    ),
+                    )
+                  : null,
             ),
-            
+
             // Content
             Expanded(
               child: Padding(
@@ -163,7 +216,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      title,
+                      course.title,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -171,45 +224,30 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    if (hasProgress) ...[
-                      // Progress Bar
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(3),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 6,
-                          backgroundColor: const Color(0xFFE0E0E0),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Color(0xFFD4989E),
-                          ),
+                    // Always show progress
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: course.progressPercentage / 100,
+                        minHeight: 6,
+                        backgroundColor: const Color(0xFFE0E0E0),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFFD4989E),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          '${(progress * 100).toInt()}%',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF666666),
-                          ),
-                        ),
-                      ),
-                    ] else if (description != null) ...[
-                      // Description
-                      Text(
-                        description,
+                    ),
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '${course.progressPercentage.toInt()}%',
                         style: const TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w400,
+                          fontWeight: FontWeight.w500,
                           color: Color(0xFF666666),
-                          height: 1.4,
                         ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -218,6 +256,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
       ),
     );
+  }
+
+  Color _parseColor(String colorString) {
+    try {
+      if (colorString.startsWith('#')) {
+        final hexColor = colorString.replaceFirst('#', '');
+        return Color(int.parse('FF$hexColor', radix: 16));
+      }
+    } catch (e) {
+      // Return default color on error
+    }
+    return const Color(0xFFE5E5E5);
   }
 
   Widget _buildBottomNavigation() {
@@ -245,7 +295,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-              _buildNavItem(1, Icons.calendar_today_outlined, Icons.calendar_today, 'Plano'),
+              _buildNavItem(1, Icons.calendar_today_outlined,
+                  Icons.calendar_today, 'Plano'),
               _buildFabButton(),
               _buildNavItem(3, Icons.book_outlined, Icons.book, 'Biblioteca'),
               _buildNavItem(4, Icons.person_outline, Icons.person, 'Perfil'),
@@ -256,14 +307,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData inactiveIcon, IconData activeIcon, String label) {
+  Widget _buildNavItem(
+      int index, IconData inactiveIcon, IconData activeIcon, String label) {
     final isActive = _selectedNavIndex == index;
     return InkWell(
       onTap: () {
         setState(() {
           _selectedNavIndex = index;
         });
-        // TODO: Navigate to respective screen
         if (index == 0) {
           Navigator.pushReplacementNamed(context, '/dashboard');
         }
@@ -275,7 +326,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
           children: [
             Icon(
               isActive ? activeIcon : inactiveIcon,
-              color: isActive ? const Color(0xFFD4989E) : const Color(0xFFCCCCCC),
+              color:
+                  isActive ? const Color(0xFFD4989E) : const Color(0xFFCCCCCC),
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -283,7 +335,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: isActive ? const Color(0xFFD4989E) : const Color(0xFFCCCCCC),
+                color: isActive
+                    ? const Color(0xFFD4989E)
+                    : const Color(0xFFCCCCCC),
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
               ),
             ),

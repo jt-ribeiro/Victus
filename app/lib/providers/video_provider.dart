@@ -58,7 +58,7 @@ class VideoProvider extends ChangeNotifier {
 
       if (response['success'] == true) {
         final data = response['data'];
-        
+
         _selectedCourse = CourseModel.fromJson(data);
         _lessons = (data['lessons'] as List)
             .map((lesson) => LessonModel.fromJson(lesson))
@@ -101,7 +101,7 @@ class VideoProvider extends ChangeNotifier {
       if (response['success'] == true) {
         // Update local state
         final isFavorite = response['data']['is_favorite'];
-        
+
         if (_currentLesson != null && _currentLesson!.id == lessonId) {
           _currentLesson = LessonModel.fromJson({
             ..._currentLesson!.toJson(),
@@ -133,7 +133,7 @@ class VideoProvider extends ChangeNotifier {
 
       if (response['success'] == true) {
         final isLiked = response['data']['is_liked'];
-        
+
         if (_currentLesson != null && _currentLesson!.id == lessonId) {
           _currentLesson = LessonModel.fromJson({
             ..._currentLesson!.toJson(),
@@ -164,7 +164,7 @@ class VideoProvider extends ChangeNotifier {
 
       if (response['success'] == true) {
         final isCompleted = response['data']['is_completed'];
-        
+
         if (_currentLesson != null && _currentLesson!.id == lessonId) {
           _currentLesson = LessonModel.fromJson({
             ..._currentLesson!.toJson(),
@@ -198,7 +198,7 @@ class VideoProvider extends ChangeNotifier {
     try {
       await _apiService.put(
         '/lessons/$lessonId/position',
-        body: {'position_seconds': positionSeconds},
+        body: {'position': positionSeconds},
       );
     } catch (e) {
       // Silent fail for position updates

@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
+import 'package:chewie/chewie.dart';
+import '../providers/video_provider.dart';
+import '../models/video_model.dart';
 
 class PlayerScreen extends StatefulWidget {
-  final String videoUrl;
+  final int courseId;
   final String title;
 
   const PlayerScreen({
     Key? key,
-    required this.videoUrl,
-    this.title = 'Liberdade Alimentar',
+    required this.courseId,
+    required this.title,
   }) : super(key: key);
 
   @override
@@ -16,74 +21,270 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen> {
   int _selectedTabIndex = 0;
-  final List<LessonItem> _lessons = [
-    LessonItem(id: 1, title: '1 | Bem-vindas', status: LessonStatus.completed),
-    LessonItem(id: 2, title: '2 | Guias Alimentares', status: LessonStatus.available),
-    LessonItem(id: 3, title: '3 | Alimentação Saudável', status: LessonStatus.locked),
-    LessonItem(id: 4, title: '4 | Emagrecimento', status: LessonStatus.locked),
-    LessonItem(id: 5, title: '5 | Planeamento Alimentar', status: LessonStatus.locked),
-  ];
+  VideoPlayerController? _videoPlayerController;
+  ChewieController? _chewieController;
+  int? _currentLessonIndex;
+  bool _isVideoInitializing = false;
 
-  bool _isFavorited = false;
-  bool _isLiked = true;
-  bool _isCompleted = true;
-  double _courseProgress = 0.8; // 80%
+  @override
+  void initState() {
+    super.initState();
+    // Load course data from API
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCourseData();
+    });
+  }
+
+  Future<void> _loadCourseData() async {
+    final videoProvider = Provider.of<VideoProvider>(context, listen: false);
+    await videoProvider.loadCourse(widget.courseId);
+
+    // Auto-play first available lesson
+    if (videoProvider.lessons.isNotEmpty) {
+      final firstPlayableIndex = videoProvider.lessons.indexWhere((l) =>
+          l.isFree || l.isCompleted || videoProvider.lessons.indexOf(l) == 0);
+      if (firstPlayableIndex != -1) {
+        _playLesson(firstPlayableIndex);
+      }
+    }
+  }
+
+  Future<void> _playLesson(int index) async {
+    if (_isVideoInitializing) return;
+
+    final videoProvider = Provider.of<VideoProvider>(context, listen: false);
+    if (index < 0 || index >= videoProvider.lessons.length) return;
+
+    final lesson = videoProvider.lessons[index];
+
+    // Check if lesson is locked
+    if (!lesson.isFree && !lesson.isCompleted && index > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Esta aula está bloqueada. Complete as aulas anteriores.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (lesson.videoUrl == null || lesson.videoUrl!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('URL do vídeo não disponível'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isVideoInitializing = true;
+      _currentLessonIndex = index;
+    });
+
+    // Dispose previous controllers
+    await _disposeVideoControllers();
+
+    try {
+      // Initialize video player
+      _videoPlayerController = VideoPlayerController.networkUrl(
+        Uri.parse(lesson.videoUrl!),
+      );
+
+      await _videoPlayerController!.initialize();
+
+      // Seek to last position if exists
+      if (lesson.lastPositionSeconds > 0) {
+        await _videoPlayerController!.seekTo(
+          Duration(seconds: lesson.lastPositionSeconds),
+        );
+      }
+
+      _chewieController = ChewieController(
+        videoPlayerController: _videoPlayerController!,
+        autoPlay: true,
+        looping: false,
+        aspectRatio: 16 / 9,
+        placeholder: Container(
+          color: Colors.black,
+          child: const Center(
+            child: CircularProgressIndicator(color: Color(0xFFD4989E)),
+          ),
+        ),
+        materialProgressColors: ChewieProgressColors(
+          playedColor: const Color(0xFFD4989E),
+          handleColor: const Color(0xFFD4989E),
+          bufferedColor: Colors.grey,
+          backgroundColor: Colors.grey[800]!,
+        ),
+      );
+
+      // Listen for position changes to save progress
+      _videoPlayerController!.addListener(_onVideoPositionChanged);
+
+      // Load lesson details
+      await videoProvider.loadLesson(lesson.id);
+
+      setState(() {
+        _isVideoInitializing = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isVideoInitializing = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao carregar vídeo: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _onVideoPositionChanged() {
+    if (_videoPlayerController == null ||
+        !_videoPlayerController!.value.isInitialized) {
+      return;
+    }
+
+    final videoProvider = Provider.of<VideoProvider>(context, listen: false);
+    final position = _videoPlayerController!.value.position.inSeconds;
+
+    // Save position every 5 seconds
+    if (position > 0 && position % 5 == 0 && _currentLessonIndex != null) {
+      final lesson = videoProvider.lessons[_currentLessonIndex!];
+      videoProvider.updatePosition(lesson.id, position);
+    }
+  }
+
+  Future<void> _disposeVideoControllers() async {
+    _videoPlayerController?.removeListener(_onVideoPositionChanged);
+    _chewieController?.dispose();
+    await _videoPlayerController?.dispose();
+    _chewieController = null;
+    _videoPlayerController = null;
+  }
+
+  @override
+  void dispose() {
+    _disposeVideoControllers();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Stack(
-          children: [
-            // Main Content
-            Column(
-              children: [
-                // Header with progress
-                _buildHeader(),
-                
-                // Scrollable Content
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 80),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Video Player
-                        _buildVideoPlayer(),
-                        
-                        // Lesson Header
-                        _buildLessonHeader(),
-                        
-                        // Description
-                        _buildDescription(),
-                        
-                        // Next Lesson
-                        _buildNextLesson(),
-                        
-                        // Lessons List
-                        _buildLessonsList(),
-                      ],
+        child: Consumer<VideoProvider>(
+          builder: (context, videoProvider, _) {
+            if (videoProvider.isLoading && videoProvider.lessons.isEmpty) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFFD4989E),
+                ),
+              );
+            }
+
+            if (videoProvider.errorMessage != null &&
+                videoProvider.lessons.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.grey[400],
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                    Text(
+                      videoProvider.errorMessage!,
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadCourseData,
+                      child: const Text('Tentar novamente'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final course = videoProvider.selectedCourse;
+            final lessons = videoProvider.lessons;
+            final currentLesson = _currentLessonIndex != null &&
+                    _currentLessonIndex! < lessons.length
+                ? lessons[_currentLessonIndex!]
+                : null;
+
+            return Stack(
+              children: [
+                Column(
+                  children: [
+                    // Header with progress
+                    _buildHeader(course),
+
+                    // Scrollable Content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 80),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Video Player
+                            _buildVideoPlayer(),
+
+                            // Lesson Header
+                            if (currentLesson != null)
+                              _buildLessonHeader(currentLesson, videoProvider),
+
+                            // Description
+                            if (currentLesson != null)
+                              _buildDescription(currentLesson),
+
+                            // Next Lesson
+                            if (_currentLessonIndex != null &&
+                                _currentLessonIndex! < lessons.length - 1)
+                              _buildNextLesson(
+                                  lessons[_currentLessonIndex! + 1]),
+
+                            // Lessons List
+                            _buildLessonsList(lessons),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Bottom Navigation
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _buildBottomNavigation(),
                 ),
               ],
-            ),
-            
-            // Bottom Navigation
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _buildBottomNavigation(),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(CourseModel? course) {
+    final progress = course?.progressPercentage ?? 0;
+
     return Container(
       color: Colors.black,
       padding: const EdgeInsets.all(16),
@@ -117,10 +318,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(2),
             child: LinearProgressIndicator(
-              value: _courseProgress,
+              value: progress / 100,
               minHeight: 4,
               backgroundColor: const Color(0xFF333333),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4989E)),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(Color(0xFFD4989E)),
             ),
           ),
           const SizedBox(height: 4),
@@ -128,7 +330,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Align(
             alignment: Alignment.centerRight,
             child: Text(
-              '${(_courseProgress * 100).toInt()}%',
+              '${progress.toInt()}%',
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w400,
@@ -145,98 +347,88 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return Container(
       height: 220,
       color: const Color(0xFF1A1A1A),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Thumbnail placeholder
-          Container(
-            color: const Color(0xFF1A1A1A),
-            child: const Center(
-              child: Icon(
-                Icons.live_tv,
-                size: 60,
-                color: Color(0xFF333333),
-              ),
-            ),
-          ),
-          // Play Button
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.9),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.play_arrow,
-                size: 40,
-                color: Colors.black,
-              ),
-              onPressed: () {
-                // TODO: Play video
-              },
-            ),
-          ),
-        ],
-      ),
+      child: _isVideoInitializing
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFFD4989E)),
+            )
+          : _chewieController != null &&
+                  _videoPlayerController != null &&
+                  _videoPlayerController!.value.isInitialized
+              ? Chewie(controller: _chewieController!)
+              : Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.play_circle_outline,
+                        size: 64,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Seleciona uma aula para reproduzir',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
     );
   }
 
-  Widget _buildLessonHeader() {
+  Widget _buildLessonHeader(LessonModel lesson, VideoProvider videoProvider) {
     return Container(
       color: Colors.black,
       padding: const EdgeInsets.all(16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Boas-vindas',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
+          Expanded(
+            child: Text(
+              lesson.title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
           ),
           Row(
             children: [
               IconButton(
                 icon: Icon(
-                  _isFavorited ? Icons.star : Icons.star_outline,
-                  color: _isFavorited ? const Color(0xFFD4989E) : Colors.white,
+                  lesson.isFavorite ? Icons.star : Icons.star_outline,
+                  color: lesson.isFavorite
+                      ? const Color(0xFFD4989E)
+                      : Colors.white,
                   size: 24,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _isFavorited = !_isFavorited;
-                  });
-                },
+                onPressed: () => videoProvider.toggleFavorite(lesson.id),
               ),
               const SizedBox(width: 8),
               IconButton(
                 icon: Icon(
-                  _isLiked ? Icons.favorite : Icons.favorite_border,
-                  color: _isLiked ? const Color(0xFFD4989E) : Colors.white,
+                  lesson.isLiked ? Icons.favorite : Icons.favorite_border,
+                  color:
+                      lesson.isLiked ? const Color(0xFFD4989E) : Colors.white,
                   size: 24,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _isLiked = !_isLiked;
-                  });
-                },
+                onPressed: () => videoProvider.toggleLike(lesson.id),
               ),
               const SizedBox(width: 8),
               IconButton(
                 icon: Icon(
-                  _isCompleted ? Icons.check_circle : Icons.check_circle_outline,
-                  color: _isCompleted ? const Color(0xFFD4989E) : Colors.white,
+                  lesson.isCompleted
+                      ? Icons.check_circle
+                      : Icons.check_circle_outline,
+                  color: lesson.isCompleted
+                      ? const Color(0xFFD4989E)
+                      : Colors.white,
                   size: 24,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _isCompleted = !_isCompleted;
-                  });
-                },
+                onPressed: () => videoProvider.markComplete(lesson.id),
               ),
             ],
           ),
@@ -245,13 +437,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildDescription() {
+  Widget _buildDescription(LessonModel lesson) {
     return Container(
       color: Colors.black,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: const Text(
-        'Lorem ipsum dolor sit amet, consectetur. Malesuada amet magnis senectus in dictum. Egestas fusce facilisis proin gravida elit purus faucibus sit facilisis. Justo proin non ipsum fermentum. Hendrerit imperdiet turpitor molestie mattis.',
-        style: TextStyle(
+      child: Text(
+        lesson.description ?? 'Sem descrição disponível.',
+        style: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: Color(0xFFCCCCCC),
@@ -261,7 +453,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildNextLesson() {
+  Widget _buildNextLesson(LessonModel nextLesson) {
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
@@ -284,12 +476,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Métodos e princípios',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+              Expanded(
+                child: Text(
+                  nextLesson.title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               Container(
@@ -306,7 +500,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     size: 24,
                   ),
                   onPressed: () {
-                    // TODO: Play next lesson
+                    final videoProvider =
+                        Provider.of<VideoProvider>(context, listen: false);
+                    final nextIndex = videoProvider.lessons.indexOf(nextLesson);
+                    _playLesson(nextIndex);
                   },
                   padding: EdgeInsets.zero,
                 ),
@@ -318,62 +515,86 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildLessonsList() {
+  Widget _buildLessonsList(List<LessonModel> lessons) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        children: _lessons.map((lesson) => _buildLessonItem(lesson)).toList(),
+        children: lessons.asMap().entries.map((entry) {
+          final index = entry.key;
+          final lesson = entry.value;
+          return _buildLessonItem(lesson, index);
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildLessonItem(LessonItem lesson) {
+  Widget _buildLessonItem(LessonModel lesson, int index) {
     IconData icon;
     Color iconColor;
+    bool isCurrentLesson = _currentLessonIndex == index;
 
-    switch (lesson.status) {
-      case LessonStatus.completed:
-        icon = Icons.check_circle;
-        iconColor = const Color(0xFFD4989E);
-        break;
-      case LessonStatus.available:
-        icon = Icons.check_circle_outline;
-        iconColor = const Color(0xFF666666);
-        break;
-      case LessonStatus.locked:
-        icon = Icons.lock_outline;
-        iconColor = const Color(0xFF666666);
-        break;
+    // Determine status
+    bool isLocked = !lesson.isFree && !lesson.isCompleted && index > 0;
+
+    // Check if previous lessons are completed
+    final videoProvider = Provider.of<VideoProvider>(context, listen: false);
+    if (index > 0) {
+      bool previousCompleted = true;
+      for (int i = 0; i < index; i++) {
+        if (!videoProvider.lessons[i].isCompleted &&
+            !videoProvider.lessons[i].isFree) {
+          previousCompleted = false;
+          break;
+        }
+      }
+      isLocked = !lesson.isFree && !lesson.isCompleted && !previousCompleted;
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              lesson.title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: lesson.status == LessonStatus.locked
-                    ? const Color(0xFF666666)
-                    : Colors.white,
+    if (lesson.isCompleted) {
+      icon = Icons.check_circle;
+      iconColor = const Color(0xFFD4989E);
+    } else if (isLocked) {
+      icon = Icons.lock_outline;
+      iconColor = const Color(0xFF666666);
+    } else {
+      icon = Icons.check_circle_outline;
+      iconColor = const Color(0xFF666666);
+    }
+
+    return GestureDetector(
+      onTap: () => _playLesson(index),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isCurrentLesson
+              ? const Color(0xFF2A2A2A)
+              : const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(12),
+          border: isCurrentLesson
+              ? Border.all(color: const Color(0xFFD4989E), width: 1)
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                '${index + 1} | ${lesson.title}',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: isLocked ? const Color(0xFF666666) : Colors.white,
+                ),
               ),
             ),
-          ),
-          Icon(
-            icon,
-            color: iconColor,
-            size: 24,
-          ),
-        ],
+            Icon(
+              icon,
+              color: iconColor,
+              size: 24,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -395,10 +616,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(0, Icons.play_circle_outline, Icons.play_circle, 'Aulas'),
-              _buildNavItem(1, Icons.chat_bubble_outline, Icons.chat_bubble, 'Comentários'),
+              _buildNavItem(
+                  0, Icons.play_circle_outline, Icons.play_circle, 'Aulas'),
+              _buildNavItem(1, Icons.chat_bubble_outline, Icons.chat_bubble,
+                  'Comentários'),
               _buildNavItem(2, Icons.note_outlined, Icons.note, 'Anotações'),
-              _buildNavItem(3, Icons.folder_outlined, Icons.folder, 'Materiais'),
+              _buildNavItem(
+                  3, Icons.folder_outlined, Icons.folder, 'Materiais'),
             ],
           ),
         ),
@@ -406,7 +630,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData inactiveIcon, IconData activeIcon, String label) {
+  Widget _buildNavItem(
+      int index, IconData inactiveIcon, IconData activeIcon, String label) {
     final isActive = _selectedTabIndex == index;
     return InkWell(
       onTap: () {
@@ -422,7 +647,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
           children: [
             Icon(
               isActive ? activeIcon : inactiveIcon,
-              color: isActive ? const Color(0xFFD4989E) : const Color(0xFF666666),
+              color:
+                  isActive ? const Color(0xFFD4989E) : const Color(0xFF666666),
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -430,7 +656,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
               label,
               style: TextStyle(
                 fontSize: 12,
-                color: isActive ? const Color(0xFFD4989E) : const Color(0xFF666666),
+                color: isActive
+                    ? const Color(0xFFD4989E)
+                    : const Color(0xFF666666),
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
@@ -439,23 +667,4 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
     );
   }
-}
-
-// Models
-class LessonItem {
-  final int id;
-  final String title;
-  final LessonStatus status;
-
-  LessonItem({
-    required this.id,
-    required this.title,
-    required this.status,
-  });
-}
-
-enum LessonStatus {
-  completed,
-  available,
-  locked,
 }

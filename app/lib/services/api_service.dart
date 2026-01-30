@@ -5,7 +5,7 @@ import 'dart:convert';
 class ApiService {
   // TODO: Update this baseUrl to match your server IP/domain
   static const String baseUrl = 'http://localhost:3000/api';
-  
+
   final _storage = const FlutterSecureStorage();
 
   // Get stored token
@@ -54,13 +54,14 @@ class ApiService {
   }
 
   // POST request helper
-  Future<dynamic> post(String endpoint, {Map<String, dynamic>? body, bool requiresAuth = true}) async {
+  Future<dynamic> post(String endpoint,
+      {Map<String, dynamic>? body, bool requiresAuth = true}) async {
     try {
       final headers = await _getHeaders(includeAuth: requiresAuth);
       final response = await http.post(
         Uri.parse('$baseUrl$endpoint'),
         headers: headers,
-        body: json.encode(body),
+        body: body != null ? json.encode(body) : json.encode({}),
       );
       return _handleResponse(response);
     } catch (e) {
@@ -69,7 +70,8 @@ class ApiService {
   }
 
   // PUT request helper
-  Future<dynamic> put(String endpoint, {Map<String, dynamic>? body, bool requiresAuth = true}) async {
+  Future<dynamic> put(String endpoint,
+      {Map<String, dynamic>? body, bool requiresAuth = true}) async {
     try {
       final headers = await _getHeaders(includeAuth: requiresAuth);
       final response = await http.put(

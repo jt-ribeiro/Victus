@@ -4,8 +4,11 @@ import 'providers/auth_provider.dart';
 import 'providers/video_provider.dart';
 import 'providers/dashboard_provider.dart';
 import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/forgot_password_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/library_screen.dart';
+import 'widgets/responsive_wrapper.dart';
 
 void main() {
   runApp(const MyApp());
@@ -25,13 +28,20 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Video Streaming',
         debugShowCheckedModeBanner: false,
+        builder: (context, child) {
+          return ResponsiveWrapper(
+            maxWidth: 600,
+            child: child ?? const SizedBox(),
+          );
+        },
         theme: ThemeData(
           // Victus Theme Configuration
           brightness: Brightness.light,
-          scaffoldBackgroundColor: const Color(0xFFF5E6E8), // Light pink background
+          scaffoldBackgroundColor:
+              const Color(0xFFF5E6E8), // Light pink background
           primaryColor: const Color(0xFFD4989E), // Rose pink
           cardColor: const Color(0xFFFFFFFF),
-          
+
           // AppBar Theme
           appBarTheme: const AppBarTheme(
             backgroundColor: Color(0xFFF5E6E8),
@@ -44,14 +54,14 @@ class MyApp extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          
+
           // Text Theme
           textTheme: const TextTheme(
             bodyLarge: TextStyle(color: Colors.black),
             bodyMedium: TextStyle(color: Colors.black),
             bodySmall: TextStyle(color: Color(0xFF666666)),
           ),
-          
+
           // Button Theme
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
@@ -67,7 +77,7 @@ class MyApp extends StatelessWidget {
               elevation: 0,
             ),
           ),
-          
+
           // Input Decoration Theme
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
@@ -89,6 +99,8 @@ class MyApp extends StatelessWidget {
         home: const LoginScreen(),
         routes: {
           '/login': (context) => const LoginScreen(),
+          '/register': (context) => const RegisterScreen(),
+          '/forgot-password': (context) => const ForgotPasswordScreen(),
           '/dashboard': (context) => const DashboardScreen(),
           '/library': (context) => const LibraryScreen(),
         },
