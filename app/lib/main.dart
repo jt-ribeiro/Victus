@@ -24,48 +24,63 @@ class MyApp extends StatelessWidget {
         title: 'Video Streaming',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          // Dark Theme Configuration
-          brightness: Brightness.dark,
-          scaffoldBackgroundColor: const Color(0xFF000000),
-          primaryColor: const Color(0xFFE50914), // Netflix Red
-          cardColor: const Color(0xFF1A1A1A),
+          // Victus Theme Configuration
+          brightness: Brightness.light,
+          scaffoldBackgroundColor: const Color(0xFFF5E6E8), // Light pink background
+          primaryColor: const Color(0xFFD4989E), // Rose pink
+          cardColor: const Color(0xFFFFFFFF),
           
           // AppBar Theme
           appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF000000),
+            backgroundColor: Color(0xFFF5E6E8),
             elevation: 0,
             centerTitle: true,
+            iconTheme: IconThemeData(color: Colors.black),
+            titleTextStyle: TextStyle(
+              color: Colors.black,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           
           // Text Theme
           textTheme: const TextTheme(
-            bodyLarge: TextStyle(color: Colors.white),
-            bodyMedium: TextStyle(color: Colors.white),
-            bodySmall: TextStyle(color: Colors.white70),
+            bodyLarge: TextStyle(color: Colors.black),
+            bodyMedium: TextStyle(color: Colors.black),
+            bodySmall: TextStyle(color: Color(0xFF666666)),
           ),
           
           // Button Theme
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE50914),
+              backgroundColor: const Color(0xFFD4989E),
               foregroundColor: Colors.white,
               textStyle: const TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w500,
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
               ),
+              elevation: 0,
             ),
           ),
           
           // Input Decoration Theme
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
-            fillColor: const Color(0xFF1A1A1A),
+            fillColor: Colors.white,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFD4989E), width: 1),
             ),
           ),
         ),
