@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/video_provider.dart';
+import '../providers/dashboard_provider.dart';
+import '../providers/auth_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -16,7 +17,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // TODO: Fetch user data and content
+    // Load dashboard data from API
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<DashboardProvider>(context, listen: false).loadDashboard();
+    });
   }
 
   @override
@@ -73,13 +77,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Olá, Cristiana',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
-            ),
+          Consumer<DashboardProvider>(
+            builder: (context, dashboardProvider, _) {
+              final userName = dashboardProvider.userName ?? 'Utilizador';
+              return Text(
+                'Olá, $userName',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                ),
+              );
+            },
           ),
           Row(
             children: [
@@ -270,93 +279,114 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildProgressCircle() {
-    return Container(
-      width: 120,
-      height: 120,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: 120,
-            height: 120,
-            child: CircularProgressIndicator(
-              value: 0.6, // 60% progress
-              strokeWidth: 12,
-              backgroundColor: const Color(0xFFF5E6E8),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4A574)),
-            ),
-          ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+    return Consumer<DashboardProvider>(
+      builder: (context, dashboardProvider, _) {
+        final progress = dashboardProvider.progress;
+        final currentValue = progress?.currentValue ?? 0;
+        final targetValue = progress?.targetValue ?? 10;
+        final percentage = targetValue > 0 ? currentValue / targetValue : 0.0;
+
+        return Container(
+          width: 120,
+          height: 120,
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              const Text(
-                '2',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
+              SizedBox(
+                width: 120,
+                height: 120,
+                child: CircularProgressIndicator(
+                  value: percentage,
+                  strokeWidth: 12,
+                  backgroundColor: const Color(0xFFF5E6E8),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4A574)),
                 ),
               ),
-              const Text(
-                'kg',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                ),
-              ),
-              const Text(
-                'perdidos',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF666666),
-                ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    currentValue.toStringAsFixed(0),
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                  ),
+                  Text(
+                    progress?.unit ?? 'kg',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const Text(
+                    'perdidos',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF666666),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildEventsList() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5E6E8),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Próximos eventos:',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
+    return Consumer<DashboardProvider>(
+      builder: (context, dashboardProvider, _) {
+        final events = dashboardProvider.events;
+        final displayEvents = events.take(2).toList();
+        final remainingCount = events.length > 2 ? events.length - 2 : 0;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5E6E8),
+            borderRadius: BorderRadius.circular(12),
           ),
-          const SizedBox(height: 12),
-          _buildEventItem('23/05', 'Masterclass'),
-          const SizedBox(height: 8),
-          _buildEventItem('12/08', 'Workshop'),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: () {
-              // TODO: View all events
-            },
-            child: const Text(
-              '+ 1 evento',
-              style: TextStyle(
-                fontSize: 12,
-                color: Color(0xFF666666),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Próximos eventos:',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
               ),
-            ),
+              const SizedBox(height: 12),
+              ...displayEvents.map((event) {
+                final date = event.date.split('-').reversed.take(2).join('/');
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildEventItem(date, event.title),
+                );
+              }).toList(),
+              if (remainingCount > 0)
+                GestureDetector(
+                  onTap: () {
+                    // TODO: View all events
+                  },
+                  child: Text(
+                    '+ $remainingCount evento${remainingCount > 1 ? 's' : ''}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF666666),
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
