@@ -6,6 +6,7 @@ import 'providers/dashboard_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/forgot_password_screen.dart';
+import 'screens/reset_password_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/library_screen.dart';
 import 'widgets/responsive_wrapper.dart';
@@ -101,6 +102,7 @@ class MyApp extends StatelessWidget {
           '/login': (context) => const LoginScreen(),
           '/register': (context) => const RegisterScreen(),
           '/forgot-password': (context) => const ForgotPasswordScreen(),
+          '/reset-password': (context) => const ResetPasswordScreen(),
           '/dashboard': (context) => const DashboardScreen(),
           '/library': (context) => const LibraryScreen(),
         },

@@ -1,45 +1,65 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({Key? key}) : super(key: key);
+class ResetPasswordScreen extends StatefulWidget {
+  final String? token;
+
+  const ResetPasswordScreen({Key? key, this.token}) : super(key: key);
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final _emailController = TextEditingController();
+class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
+  final _tokenController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final ApiService _apiService = ApiService();
+
   bool _isLoading = false;
-  bool _emailSent = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _resetSuccess = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill token if provided
+    if (widget.token != null) {
+      _tokenController.text = widget.token!;
+    }
+  }
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _tokenController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleForgotPassword() async {
-    final email = _emailController.text.trim();
+  Future<void> _handleResetPassword() async {
+    final token = _tokenController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
 
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor insere o teu email'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (token.isEmpty) {
+      _showError('Por favor insere o código de recuperação');
       return;
     }
 
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor insere um email válido'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (password.isEmpty) {
+      _showError('Por favor insere a nova password');
+      return;
+    }
+
+    if (password.length < 6) {
+      _showError('A password deve ter pelo menos 6 caracteres');
+      return;
+    }
+
+    if (password != confirmPassword) {
+      _showError('As passwords não coincidem');
       return;
     }
 
@@ -49,44 +69,41 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       final response = await _apiService.post(
-        '/auth/forgot-password',
-        body: {'email': email},
+        '/auth/reset-password',
+        body: {
+          'token': token,
+          'password': password,
+        },
       );
 
       if (response['success'] == true) {
         setState(() {
           _isLoading = false;
-          _emailSent = true;
+          _resetSuccess = true;
         });
-
-        // Show dev token in development (remove in production)
-        if (response['data']?['dev_token'] != null) {
-          print('DEV: Reset token: ${response['data']['dev_token']}');
-        }
       } else {
         setState(() {
           _isLoading = false;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response['message'] ?? 'Erro ao enviar email'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showError(response['message'] ?? 'Erro ao redefinir password');
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError(e.toString().replaceAll('Exception: ', ''));
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
@@ -101,7 +118,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Recuperar palavra-passe',
+          'Redefinir palavra-passe',
           style: TextStyle(
             color: Colors.black,
             fontSize: 20,
@@ -113,7 +130,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: _emailSent ? _buildSuccessContent() : _buildFormContent(),
+          child: _resetSuccess ? _buildSuccessContent() : _buildFormContent(),
         ),
       ),
     );
@@ -143,7 +160,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ],
               ),
               child: const Icon(
-                Icons.lock_reset,
+                Icons.lock_open,
                 size: 40,
                 color: Color(0xFFD4989E),
               ),
@@ -153,7 +170,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
           // Description
           const Text(
-            'Esqueceste-te da tua palavra-passe? Não te preocupes! Insere o teu email e enviaremos instruções para a recuperares.',
+            'Insere o código de recuperação que recebeste no email e a tua nova password.',
             style: TextStyle(
               fontSize: 14,
               color: Color(0xFF666666),
@@ -163,9 +180,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
           const SizedBox(height: 32),
 
-          // Email Field
+          // Token Field
           const Text(
-            'Email',
+            'Código de recuperação',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -174,11 +191,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
           const SizedBox(height: 8),
           TextField(
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
+            controller: _tokenController,
             style: const TextStyle(fontSize: 16),
             decoration: InputDecoration(
-              hintText: 'O email associado à tua conta',
+              hintText: 'Cole o código aqui',
               hintStyle: const TextStyle(
                 color: Color(0xFF999999),
                 fontSize: 16,
@@ -203,6 +219,114 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 20),
+
+          // New Password Field
+          const Text(
+            'Nova password',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _passwordController,
+            obscureText: _obscurePassword,
+            style: const TextStyle(fontSize: 16),
+            decoration: InputDecoration(
+              hintText: 'Mínimo 6 caracteres',
+              hintStyle: const TextStyle(
+                color: Color(0xFF999999),
+                fontSize: 16,
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.all(16),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  color: const Color(0xFF666666),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscurePassword = !_obscurePassword;
+                  });
+                },
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Color(0xFFD4989E),
+                  width: 1,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Confirm Password Field
+          const Text(
+            'Confirmar password',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _confirmPasswordController,
+            obscureText: _obscureConfirmPassword,
+            style: const TextStyle(fontSize: 16),
+            decoration: InputDecoration(
+              hintText: 'Repete a password',
+              hintStyle: const TextStyle(
+                color: Color(0xFF999999),
+                fontSize: 16,
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.all(16),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureConfirmPassword
+                      ? Icons.visibility_off
+                      : Icons.visibility,
+                  color: const Color(0xFF666666),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscureConfirmPassword = !_obscureConfirmPassword;
+                  });
+                },
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Color(0xFFD4989E),
+                  width: 1,
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 32),
 
           // Submit Button
@@ -210,7 +334,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleForgotPassword,
+              onPressed: _isLoading ? null : _handleResetPassword,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD4989E),
                 foregroundColor: Colors.white,
@@ -229,7 +353,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                     )
                   : const Text(
-                      'Enviar instruções',
+                      'Redefinir password',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -238,33 +362,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
           ),
           const SizedBox(height: 24),
-
-          // Back to login link
-          Center(
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Voltar ao login',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFFD4989E),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-          Center(
-            child: TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/reset-password'),
-              child: const Text(
-                'Já tens um código de recuperação?',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF666666),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -299,7 +396,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
         // Success Title
         const Text(
-          'Email enviado!',
+          'Password alterada!',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w700,
@@ -309,9 +406,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 16),
 
         // Success Description
-        Text(
-          'Enviámos instruções para ${_emailController.text}. Verifica a tua caixa de entrada e a pasta de spam.',
-          style: const TextStyle(
+        const Text(
+          'A tua password foi alterada com sucesso. Podes agora fazer login com a nova password.',
+          style: TextStyle(
             fontSize: 14,
             color: Color(0xFF666666),
             height: 1.5,
@@ -320,39 +417,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
         const SizedBox(height: 32),
 
-        // Back to login button
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: OutlinedButton(
-            onPressed: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFFD4989E)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              'Voltar ao login',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFFD4989E),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // I have a code button (Primary Action now)
+        // Go to login button
         SizedBox(
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
             onPressed: () {
-              Navigator.pushNamed(context, '/reset-password');
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                '/login',
+                (route) => false,
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFD4989E),
@@ -363,28 +437,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               elevation: 0,
             ),
             child: const Text(
-              'Já tenho um código',
+              'Ir para login',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Resend link
-        TextButton(
-          onPressed: () {
-            setState(() {
-              _emailSent = false;
-            });
-          },
-          child: const Text(
-            'Não recebeste? Enviar novamente',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF666666),
             ),
           ),
         ),

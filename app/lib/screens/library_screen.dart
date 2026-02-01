@@ -12,7 +12,8 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
-  int _selectedNavIndex = 3; // Library is active
+  // 0: Home, 1: Plano, 2: Biblioteca, 3: Perfil
+  int _selectedNavIndex = 2; 
 
   @override
   void initState() {
@@ -27,107 +28,115 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      
+      // --- BODY ---
       body: SafeArea(
-        child: Stack(
+        child: Column(
           children: [
-            // Main Content
-            Column(
-              children: [
-                // Header
-                _buildHeader(),
+            // Header
+            _buildHeader(),
 
-                // Content List
-                Expanded(
-                  child: Consumer<VideoProvider>(
-                    builder: (context, videoProvider, _) {
-                      if (videoProvider.isLoading) {
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xFFD4989E),
+            // Content List
+            Expanded(
+              child: Consumer<VideoProvider>(
+                builder: (context, videoProvider, _) {
+                  if (videoProvider.isLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFC78D86), // Cor ajustada
+                      ),
+                    );
+                  }
+
+                  if (videoProvider.errorMessage != null) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text(
+                            videoProvider.errorMessage!,
+                            style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                            textAlign: TextAlign.center,
                           ),
-                        );
-                      }
-
-                      if (videoProvider.errorMessage != null) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                size: 48,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                videoProvider.errorMessage!,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 16,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: () => videoProvider.loadCourses(),
-                                child: const Text('Tentar novamente'),
-                              ),
-                            ],
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () => videoProvider.loadCourses(),
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC78D86)),
+                            child: const Text('Tentar novamente'),
                           ),
-                        );
-                      }
+                        ],
+                      ),
+                    );
+                  }
 
-                      if (videoProvider.courses.isEmpty) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.library_books_outlined,
-                                size: 48,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Nenhum curso disponível',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
+                  if (videoProvider.courses.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.library_books_outlined, size: 48, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Nenhum curso disponível',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 16),
                           ),
-                        );
-                      }
+                        ],
+                      ),
+                    );
+                  }
 
-                      return ListView.separated(
-                        padding: const EdgeInsets.only(
-                          left: 16,
-                          right: 16,
-                          bottom: 80, // Space for bottom nav
-                        ),
-                        itemCount: videoProvider.courses.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 16),
-                        itemBuilder: (context, index) {
-                          final course = videoProvider.courses[index];
-                          return _buildLibraryItem(course);
-                        },
-                      );
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    itemCount: videoProvider.courses.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final course = videoProvider.courses[index];
+                      return _buildLibraryItem(course);
                     },
-                  ),
-                ),
-              ],
-            ),
-
-            // Bottom Navigation
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _buildBottomNavigation(),
+                  );
+                },
+              ),
             ),
           ],
+        ),
+      ),
+
+      // --- FAB ---
+      floatingActionButton: SizedBox(
+        height: 65,
+        width: 65,
+        child: FloatingActionButton(
+          onPressed: () {
+            // Ação do botão Mais
+          },
+          backgroundColor: const Color(0xFFC78D86), // Terra Rosa
+          elevation: 4,
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add, size: 32, color: Colors.white),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+
+      // --- BOTTOM NAVIGATION ---
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8.0,
+        color: Colors.white,
+        elevation: 10,
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(0, Icons.home, "Home"),
+              _buildNavItem(1, Icons.restaurant_menu, "Plano"),
+              const SizedBox(width: 40), // Espaço para o FAB
+              _buildNavItem(2, Icons.video_library_outlined, "Biblioteca"),
+              _buildProfileNavItem(3, "Perfil"),
+            ],
+          ),
         ),
       ),
     );
@@ -135,15 +144,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      width: double.infinity, // Força o container a ocupar a largura total
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0), // Ajuste das margens
       child: const Text(
         'Biblioteca',
         style: TextStyle(
           fontSize: 24,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w700, // Negrito igual ao dashboard
           color: Colors.black,
         ),
-        textAlign: TextAlign.center,
+        textAlign: TextAlign.left, // Alinha à esquerda
       ),
     );
   }
@@ -224,7 +234,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Always show progress
+                    // Progress Bar
                     ClipRRect(
                       borderRadius: BorderRadius.circular(3),
                       child: LinearProgressIndicator(
@@ -232,7 +242,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         minHeight: 6,
                         backgroundColor: const Color(0xFFE0E0E0),
                         valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFFD4989E),
+                          Color(0xFFC78D86), // Cor ajustada
                         ),
                       ),
                     ),
@@ -270,107 +280,68 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return const Color(0xFFE5E5E5);
   }
 
-  Widget _buildBottomNavigation() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: const Color(0xFFE0E0E0),
-            width: 1,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 70,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-              _buildNavItem(1, Icons.calendar_today_outlined,
-                  Icons.calendar_today, 'Plano'),
-              _buildFabButton(),
-              _buildNavItem(3, Icons.book_outlined, Icons.book, 'Biblioteca'),
-              _buildNavItem(4, Icons.person_outline, Icons.person, 'Perfil'),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // --- NAV ITEMS (Igual ao Dashboard) ---
 
-  Widget _buildNavItem(
-      int index, IconData inactiveIcon, IconData activeIcon, String label) {
+  Widget _buildNavItem(int index, IconData icon, String label) {
     final isActive = _selectedNavIndex == index;
+    final color = isActive ? const Color(0xFFC78D86) : Colors.grey[400];
+
     return InkWell(
       onTap: () {
-        setState(() {
-          _selectedNavIndex = index;
-        });
+        setState(() => _selectedNavIndex = index);
         if (index == 0) {
-          Navigator.pushReplacementNamed(context, '/dashboard');
+          // Exemplo de navegação para voltar à home
+          Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (route) => false);
         }
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isActive ? activeIcon : inactiveIcon,
-              color:
-                  isActive ? const Color(0xFFD4989E) : const Color(0xFFCCCCCC),
-              size: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: isActive
-                    ? const Color(0xFFD4989E)
-                    : const Color(0xFFCCCCCC),
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+                fontSize: 10,
+                color: color,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildFabButton() {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: const Color(0xFFD4989E),
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFD4989E).withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+  Widget _buildProfileNavItem(int index, String label) {
+    final isActive = _selectedNavIndex == index;
+    
+    return InkWell(
+      onTap: () => setState(() => _selectedNavIndex = index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            height: 24,
+            width: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.grey[300], // Fundo cinza (placeholder)
+              border: isActive 
+                  ? Border.all(color: const Color(0xFFC78D86), width: 2) 
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label, 
+            style: TextStyle(
+              fontSize: 10, 
+              color: isActive ? const Color(0xFFC78D86) : Colors.grey[400], 
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal
+            )
           ),
         ],
-      ),
-      child: IconButton(
-        onPressed: () {
-          // TODO: Add action
-        },
-        icon: const Icon(
-          Icons.add,
-          color: Colors.white,
-          size: 28,
-        ),
       ),
     );
   }

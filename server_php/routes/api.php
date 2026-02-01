@@ -120,6 +120,16 @@ $router->post('/api/auth/register', function () {
     $controller->register();
 });
 
+$router->post('/api/auth/forgot-password', function () {
+    $controller = new AuthController();
+    $controller->forgotPassword();
+});
+
+$router->post('/api/auth/reset-password', function () {
+    $controller = new AuthController();
+    $controller->resetPassword();
+});
+
 // ====================================
 // PROTECTED ROUTES (Require auth)
 // ====================================

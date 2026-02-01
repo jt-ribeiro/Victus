@@ -1,201 +1,105 @@
-# Video Streaming App
+# Video Streaming App - Victus
 
-A Full Stack Video Streaming application built with Flutter (frontend) and Node.js/Express (backend) with MySQL database.
+Uma aplicação completa de streaming de vídeo construída com **Flutter** (frontend) e **PHP Nativo** (backend), focada em performance e simplicidade.
 
-## 🎯 Features
+## 🎯 Funcionalidades Principais
 
-- User Authentication (Login/Register)
-- Video Streaming with Chewie Player
-- Category-based Video Filtering
-- Favorite Videos
-- Continue Watching (Save Playback Position)
-- Clean Architecture (Flutter)
-- RESTful API (Node.js/Express)
+- **Autenticação Completa:** Login, Registo e **Recuperação de Password com Código** (via Email).
+- **Dashboard Interativa:** Visualização do progresso (kg perdidos) e próximos eventos.
+- **Streaming de Vídeo:** Player integrado com suporte a lista de reprodução.
+- **Biblioteca:** Filtros por categoria e gestão de favoritos.
+- **Design Moderno:** Tema "Victus" com paleta de cores harmoniosa (Rosa/Branco) e UX fluida.
+- **Recuperação de Conta:** Sistema robusto usando a **Resend API** para envio instantâneo de códigos.
 
-## 📁 Project Structure
+## 📁 Estrutura do Projeto
 
 ```
 video-streaming-app/
-├── server/                 # Backend (Node.js/Express)
-│   ├── config/            # Database configuration
-│   ├── controllers/       # Request handlers
-│   ├── models/           # Data models
-│   ├── routes/           # API routes
-│   ├── db/               # Database schema
-│   ├── .env              # Environment variables
-│   └── index.js          # Server entry point
+├── server_php/             # Backend (PHP Puro)
+│   ├── config/            # Ligação à Base de Dados
+│   ├── controllers/       # Lógica de Autenticação e Dados
+│   ├── db/                # Scripts SQL (Tabelas: users, tokens, videos)
+│   ├── utils/             # Helpers (Mailer, JWT, Resposta JSON)
+│   ├── .env               # Variáveis de Ambiente (DB, Resend API)
+│   └── index.php          # Ponto de Entrada (Router)
 │
-└── app/                   # Frontend (Flutter)
+└── app/                    # Frontend (Flutter)
     ├── lib/
-    │   ├── models/       # Data models
-    │   ├── services/     # API services
-    │   ├── providers/    # State management
-    │   ├── screens/      # UI screens
-    │   └── widgets/      # Reusable widgets
-    └── pubspec.yaml      # Dependencies
+    │   ├── providers/     # Gestão de Estado (Provider)
+    │   ├── screens/       # Ecrãs (Login, Dashboard, Player)
+    │   ├── services/      # Comunicação com API
+    │   └── widgets/       # Componentes Reutilizáveis
+    └── pubspec.yaml       # Dependências
 ```
 
-## 🚀 Getting Started
+## 🚀 Como Começar
 
-### Prerequisites
+### Pré-requisitos
+- **XAMPP** (ou qualquer servidor PHP + MySQL)
+- **Flutter SDK**
+- Conta na **Resend.com** (para emails)
 
-- Node.js (v14 or higher)
-- MySQL (v8.0 or higher)
-- Flutter (v3.0 or higher)
-- Dart SDK
+### 1. Configuração do Backend (PHP)
 
-### Backend Setup
+1. **Base de Dados:**
+   - Cria uma base de dados no MySQL chamada `video_streaming_db`.
+   - Importa os scripts da pasta `server_php/db/`.
 
-1. Navigate to the server directory:
+2. **Variáveis de Ambiente:**
+   - Vai à pasta `server_php`.
+   - Copia `.env.example` para `.env`.
+   - Configura o acesso à BD e a tua chave da Resend API (`RESEND_API_KEY`).
+
+3. **Iniciar Servidor:**
    ```bash
-   cd server
+   cd server_php
+   php -S localhost:3000
    ```
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+### 2. Configuração do Frontend (Flutter)
 
-3. Configure environment variables:
-   - Open `.env` file
-   - Update database credentials:
-     ```
-     DB_HOST=localhost
-     DB_USER=root
-     DB_PASS=your_password
-     DB_NAME=video_streaming_db
-     JWT_SECRET=your_secret_key
-     PORT=3000
-     ```
-
-4. Create and seed the database:
-   ```bash
-   # Login to MySQL
-   mysql -u root -p
-   
-   # Import the schema
-   source db/schema.sql
-   ```
-
-5. Start the server:
-   ```bash
-   node index.js
-   ```
-   
-   Server will run on `http://localhost:3000`
-
-### Frontend Setup
-
-1. Navigate to the app directory:
+1. Instala as dependências:
    ```bash
    cd app
-   ```
-
-2. Install Flutter dependencies:
-   ```bash
    flutter pub get
    ```
 
-3. Update API endpoint:
-   - Open `lib/services/api_service.dart`
-   - Update `baseUrl` with your server IP (use your computer's IP address for testing on physical devices)
+2. Verifica o endereço da API:
+   - No ficheiro `lib/services/api_service.dart`, certifica-te que o IP/Porta corresponde ao teu servidor local.
 
-4. Run the app:
+3. Executa a App:
    ```bash
-   # For Android/iOS emulator
    flutter run
-   
-   # For specific device
-   flutter devices
-   flutter run -d <device_id>
    ```
 
-## 🔐 Test Credentials
+## � Sistema de Recuperação de Password
 
-Use these credentials to test the application:
+Este projeto abandonou o uso de SMTP instável (Gmail/Outlook) em favor da **Resend API**.
+- **Envio Rápido:** Emails entregues em milissegundos.
+- **Fluxo na App:**
+  1. Utilizador pede recuperação.
+  2. Recebe código de 64 chars por email.
+  3. Insere o código na App (botão "Já tenho um código").
+  4. Define nova password.
 
-- **Email:** test@example.com
-- **Password:** test123
+*Para configurar, vê o ficheiro `server_php/EMAIL_SETUP.md`.*
 
-## 📱 Available Screens
+## 🔧 Tecnologias Usadas
 
-1. **Login Screen** - User authentication
-2. **Dashboard Screen** - Browse videos by category
-3. **Library Screen** - Favorites and continue watching
-4. **Player Screen** - Video playback with Chewie
+**Backend:**
+- PHP 7.4+ (Sem frameworks pesadas)
+- PDO (MySQL)
+- JWT (JSON Web Tokens)
+- cURL (Integração com APIs externas)
 
-## 🎨 Theme
+**Frontend:**
+- Flutter 3.x
+- Provider (State Management)
+- Video Player / Chewie
+- Http Package
 
-The app uses a Netflix-inspired dark theme:
-- Background: `#000000` (Black)
-- Primary Color: `#E50914` (Netflix Red)
-- Card Color: `#1A1A1A` (Dark Gray)
-
-## 📦 Dependencies
-
-### Backend
-- express - Web framework
-- mysql2 - MySQL client
-- jsonwebtoken - JWT authentication
-- bcryptjs - Password hashing
-- cors - CORS middleware
-- dotenv - Environment variables
-
-### Frontend
-- provider - State management
-- http - HTTP requests
-- video_player - Video playback
-- chewie - Video player UI
-- flutter_secure_storage - Secure token storage
-- cached_network_image - Image caching
-- intl - Date formatting
-
-## 🔧 TODO: Implementation Tasks
-
-The following features need to be implemented:
-
-### Backend
-- [ ] Complete authentication logic in `authController.js`
-- [ ] Implement video CRUD operations in `videoController.js`
-- [ ] Add JWT middleware for protected routes
-- [ ] Implement user-video relationship queries
-
-### Frontend
-- [ ] Complete login/register functionality
-- [ ] Implement video fetching from API
-- [ ] Add favorite toggle functionality
-- [ ] Implement playback position tracking
-- [ ] Add category filtering
-- [ ] Implement secure token storage
-
-## 📝 API Endpoints
-
-```
-POST   /api/auth/login              - User login
-POST   /api/auth/register           - User registration
-GET    /api/videos                  - Get all videos
-GET    /api/videos/:id              - Get video by ID
-GET    /api/videos/category/:id     - Get videos by category
-POST   /api/videos/:id/favorite     - Toggle favorite
-PUT    /api/videos/:id/position     - Update playback position
-```
-
-## 🎥 Sample Videos
-
-The database is seeded with public domain videos from Blender Open Movies:
-- Big Buck Bunny
-- Elephant Dream
-- Sintel
-- Tears of Steel
-
-## 📄 License
-
-This project is open source and available for educational purposes.
-
-## 🤝 Contributing
-
-This is a boilerplate project. Feel free to implement the TODO items and extend functionality as needed.
+## 🤝 Contribuir
+Sente-te à vontade para abrir Issues ou Pull Requests para melhorar o projeto.
 
 ---
-
-**Note:** This is a starter template with boilerplate code. Business logic implementation is required for full functionality.
+**Desenvolvido com ❤️ e PHP**
