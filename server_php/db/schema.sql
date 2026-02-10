@@ -8,7 +8,8 @@ USE video_streaming_db;
 -- 2. Drop tables if they exist (to start fresh)
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS password_reset_tokens;
-DROP TABLE IF EXISTS lesson_progress;
+DROP TABLE IF EXISTS user_lessons;
+DROP TABLE IF EXISTS user_courses;
 DROP TABLE IF EXISTS lessons;
 DROP TABLE IF EXISTS courses;
 DROP TABLE IF EXISTS categories;
@@ -59,6 +60,19 @@ CREATE TABLE courses (
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 6.5 Create User Courses (Favorites & Progress)
+CREATE TABLE user_courses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    course_id INT NOT NULL,
+    progress_percentage INT DEFAULT 0,
+    is_favorite BOOLEAN DEFAULT 0,
+    last_accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_course (user_id, course_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 7. Create Lessons (Episodes)
 CREATE TABLE lessons (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -73,12 +87,12 @@ CREATE TABLE lessons (
     FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 8. Create User Progress (Continue Watching)
-CREATE TABLE lesson_progress (
+-- 8. Create User Lessons (Progress & Likes)
+CREATE TABLE user_lessons (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     lesson_id INT NOT NULL,
-    position_seconds INT DEFAULT 0,
+    last_position_seconds INT DEFAULT 0,
     is_completed BOOLEAN DEFAULT 0,
     is_favorite BOOLEAN DEFAULT 0,
     is_liked BOOLEAN DEFAULT 0,

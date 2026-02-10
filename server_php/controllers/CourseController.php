@@ -25,12 +25,10 @@ class CourseController
                     c.description,
                     c.thumbnail_url,
                     c.thumbnail_color,
-                    c.status,
                     COALESCE(uc.progress_percentage, 0) as progress_percentage,
                     COALESCE(uc.is_favorite, 0) as is_favorite
                 FROM courses c
                 LEFT JOIN user_courses uc ON c.id = uc.course_id AND uc.user_id = ?
-                WHERE c.status = 'active'
                 ORDER BY c.id DESC
             ");
             $stmt->execute([$user->id]);
@@ -77,7 +75,7 @@ class CourseController
                 FROM lessons l
                 LEFT JOIN user_lessons ul ON l.id = ul.lesson_id AND ul.user_id = ?
                 WHERE l.course_id = ?
-                ORDER BY l.order_index ASC
+                ORDER BY l.position ASC
             ");
             $stmt->execute([$user->id, $id]);
             $course['lessons'] = $stmt->fetchAll();
